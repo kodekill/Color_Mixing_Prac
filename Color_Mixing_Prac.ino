@@ -1,18 +1,24 @@
 #include <Adafruit_NeoPixel.h>
 #define PIN 2
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(4, PIN, NEO_GRB + NEO_KHZ800);
-
+#define NUM_OF_LEDS 1
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN, NEO_GRB + NEO_KHZ800);
+  /
+//Max pot values for 3.3v will be 670
+//Max pot values for 5.0v will be 1024
 int Level = A0; 
 int Tone = A1;
+
 int LevelValue = 0;
 int ToneValue = 0;
 unsigned int rate = 5;
-float myIntensity = .02;
+//I'm using this value for now just to keep the light somewhat dim while I proto this
+float myIntensity = .02;  //2% brightness 
 
 enum AnimationMode{
   ON,
   BREATHE,
   BLINK,
+  CYCLE,
 } mode = ON;
 
 typedef struct {
@@ -59,17 +65,13 @@ void decreaseIntensity() {
   color.intensity = Clamp(color.intensity - 25);
 }
 
-
 void loop() 
 {
   Take_Color_Input();
   AnimationStep();
   delay(10);
   SetPixels();
-  //delay(10);
 }
-
-
 
 
 int AnimationStep(){
@@ -79,8 +81,8 @@ int AnimationStep(){
   if ((LevelValue >= 226 )   && (LevelValue <= 450))  { mode  = BREATHE;}
   if ((LevelValue >= 451 )  && (LevelValue <= 676))  { mode  = BLINK;}
 
-  Serial.print("Level = ");
-  Serial.println(LevelValue);
+  //Serial.print("Level = ");
+  //Serial.println(LevelValue);
 
   switch (mode){
     
@@ -91,14 +93,17 @@ int AnimationStep(){
 
      case BREATHE:
          Breathe();
-         //Serial.println("AnimationStep = Breathe");
+         //Serial.println("AnimationStep = BREATHE");
      break;
 
      case BLINK:
          Blink();
          //Serial.println("AnimationStep = BLINK");
      break;
-
+     
+     case CYCLE:
+          Cycle();
+          //Serial.println("AnimationStep = CYCLE");
   }
 }
 
@@ -111,12 +116,12 @@ if (ToneValue <= 255)          // Red to Yellow
   {
     color.R = 255 - ToneValue;           // red goes from on to off
     color.G = ToneValue;                 // green goes from off to on
-    color.B = 0;                     // blue is always off
+    color.B = 0;                         // blue is always off
   }
 
 else if (ToneValue <= 511)     // Green to Blue
   {
-    color.R = 0;                     // red is always off
+    color.R = 0;                         // red is always off
     color.G = 255 - (ToneValue - 256);   // green on to off
     color.B = (ToneValue - 256);         // blue off to on
   }
@@ -124,27 +129,52 @@ else if (ToneValue <= 511)     // Green to Blue
 else // color >= 512       // Purple to Red
   {
     color.R = (ToneValue - 512);          // red off to on
-    color.G = 0;                      // green is always off
+    color.G = 0;                          // green is always off
     color.B = 255 - (ToneValue - 512);    // blue on to off
   }
-  
- //colorPrime = color;
- // colorPrime.intensity = 1;
 }
 
+void Cycle(){
+int x; 
+
+  for (x=0; x < 768; x++){
+    delay(10);
+    //Serial.println(x);
+    if (x <= 255)          // Red to Yellow
+      {
+        color.R = 255 - x;              // red goes from on to off
+        color.G = x;                    // green goes from off to on
+        color.B = 0;                    // blue is always off
+      }
+    
+    else if (x <= 511)     // Green to Blue
+      {
+        color.R = 0;                    // red is always off
+        color.G = 255 - (x - 256);      // green on to off
+        color.B = (x - 256);            // blue off to on
+      }
+    
+    else // color >= 512       // Purple to Red
+      {
+        color.R = (x - 512);             // red off to on
+        color.G = 0;                     // green is always off
+        color.B = 255 - (x - 512);       // blue on to off
+      }
+      colorPrime = color;
+  colorPrime.intensity = 3;
+  } 
+}
 
 void Full_On(){
- // static int intensity = color.intensity;
   colorPrime = color;
   colorPrime.intensity = 3;
 }
 
 void Breathe(){
-  
-  static enum {
-     inhale,
-     exhale 
-    }respiration = exhale;
+static enum {
+   inhale,
+   exhale 
+  }respiration = exhale;
 
   static int brightness = 400;
 
@@ -174,10 +204,7 @@ void Breathe(){
   colorPrime = color;
   colorPrime.intensity = brightness;
   delay(12*rate);
- // Serial.print("brightness = ");
- // Serial.println(brightness);
 }
-
 
 void Blink(){
   static enum{
@@ -186,13 +213,12 @@ void Blink(){
     middle
   }type = on;
 
-  static int brightness = 8;
+  static int brightness = 6;
 
   if (type == on){
     delay(100*rate);
     brightness = 8;
     type = middle;
-    
   }
   
   else if (type == middle){
@@ -207,14 +233,11 @@ void Blink(){
   
   colorPrime = color;
   colorPrime.intensity = brightness;
-
 }
 
-
-
 void SetPixels(){
-  SetLED(strip.Color(colorPrime.R * colorPrime.intensity*myIntensity, colorPrime.G * colorPrime.intensity*myIntensity, colorPrime.B * colorPrime.intensity*myIntensity), 0);
- // SetLED(strip.Color(colorPrime.R *myIntensity, colorPrime.G*myIntensity, colorPrime.B*myIntensity), 0);
+  Serial.println(colorPrime.intensity);
+  SetLED(strip.Color(colorPrime.R * colorPrime.intensity*myIntensity, colorPrime.G * colorPrime.intensity*myIntensity, colorPrime.B * colorPrime.intensity*myIntensity), 0); 
 }
 
 void SetLED(uint32_t c, uint8_t wait) {
